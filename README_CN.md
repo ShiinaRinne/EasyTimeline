@@ -2,17 +2,17 @@
 
 ## Introduction
 
-这个库包含一些对Unity Timeline的扩展。<br>
-可以在不编写代码的情况下更轻松的通过Timeline编辑Volume或Object属性，或者快速开发原型。
+这个库包含一些对 Unity Timeline 的扩展。<br>
+可以在不编写代码的情况下更轻松的通过 Timeline 编辑 Volume 或 GameObject Component 属性，或者快速开发原型以便自定义更多逻辑。
 
-目前这个repo里有一些Unity URP原有的后处理Volume的扩展，用来在Timeline中动态调节Volume<br>
+目前这个 repo 里有一些 Unity URP 原有的后处理 Volume 的扩展，用来在 Timeline 中动态调节 Volume<br>
 可以直接导入项目使用, 也可以通过”**MAO Timeline Playable Wizard**”这个工具自行扩展。
 
 ![](https://r2.youngmoe.com/ym-r2-bucket/2023/11/fb552984c57c7f0d554303d97d4387c6.gif)
 
 ## Features
 
-### 目前在Volume模式中支持的、可用的参数：
+### 目前在 Volume 模式中支持的、可用的参数：
 
 - `FloatParameter`
 - `IntParameter`
@@ -38,11 +38,11 @@
 
 ### Typical usecase
 
-1. 打开Timeline窗口，创建一个新的Timeline
-2. 在Scene中创建一个Volume，添加 `TimelineExtensionVolumeSettings` 组件
-3. 在Timeline中添加一个新的Track。如果是直接使用的这个repo，它的名字应该以`MAO`开头，例如`MAOBloom`
+1. 打开 Timeline 窗口，创建一个新的 Timeline
+2. 在 Scene 中创建一个 Volume，添加 `TimelineExtensionVolumeSettings` 组件
+3. 在 Timeline 中添加一个新的 Track。如果是直接使用的这个 repo，它的名字应该以`MAO`开头，例如`MAOBloom`
 4. 将创建的 `TimelineExtensionVolumeSettings` 组件绑定到这个Track上
-5. 在Track中添加新的Clip，编辑属性，或者与其他的Clip进行混合即可
+5. 在 Track 中添加新的 Clip，编辑属性，或者与其他的 Clip 进行混合即可
 
 #### `TimelineExtensionVolumeSettings` 组件设置:
 - `VolumeAccessType`:
@@ -55,8 +55,8 @@
 
 ### Wizard Usage
 
-这是一个可以快速生成Timeline扩展的工具<br>
-它可以直接获取当前AppDomain下的所有类，并通过C#反射来获取需要的字段，这样就不再需要自己写扩展了~
+这是一个可以快速生成 Timeline 扩展代码的工具<br>
+它可以直接获取当前 AppDomain 下的所有类，并通过 C# 反射来获取需要的字段，这样就不再需要自己写扩展了~
 
 
 **Volume Component：**
@@ -66,7 +66,7 @@
 
    <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/19e8b6032028290d224b7fadef049284.png" width="50%">
 
-3. 将Default Values设置为Volume
+3. 将 `Default Values` 设置为 `Volume`
 
    <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/7a228f2972434178c205c8aaf67a6b0b.png" width="50%">
 
@@ -74,10 +74,10 @@
 
    <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/14b3980e06f8d6cb0b87f9e74eb025e4.png" width="50%">
 
-5. 最后点 `Create`就可以了，等编译完之后就可以使用，你可以在 `Assets/TimelineExtensions`找到生成的脚本
+5. 最后点 `Create` 就可以了，等编译完之后就可以使用，你可以在 `Assets/TimelineExtensions` 找到生成的脚本
 
 > [!IMPORTANT]
-> 目前不支持Enum类型(例如景深的 Gaussian 或 Bokeh 模式)，如果确实需要的话，可以参考以下方法分成多个Track制作：<br>
+> 目前不支持 Enum 类型(例如景深的 Gaussian 或 Bokeh 模式)，如果确实需要的话，可以参考以下方法分成多个 Track 制作：<br>
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/48d3bda1b26b762ac0477f2b94fc2a75.png" width="50%">
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/8d325d458c0209b9068427474dce6377.png" width="50%">
 
@@ -88,10 +88,8 @@
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2024/11/namespace.png" width="50%">
 
 ## TODO
-- [x]  在生成时，自动获取`[Range()]`,`[Min()]`,`[Max()]`这些属性
-- [x]  优化添加属性时候的操作
 - [ ]  添加对更多类型参数的支持
-- [ ]  支持一些高级设置，例如`Blend Curves`,`Easing-in and Easing-out`.
+- [ ]  支持一些高级设置，例如`Blend Curves`, `Easing-in and Easing-out`.
 
 ## License
 
@@ -107,3 +105,6 @@
 
 [//]: # (## 彩蛋2)
 [//]: # (一年过去了，爱莉还是没有来到我身边QAQ)
+
+[//]: # (## 彩蛋2)
+[//]: # (两年了)

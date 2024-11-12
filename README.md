@@ -4,13 +4,13 @@ English | [中文](README_CN.md)
 ## Introduction
 
 Some extensions for Unity Timeline. 
-You can edit `Volume` or `GameObject`'s properties in the Timeline more easily **without writing code**,<br> 
+You can edit `Volume` or `GameObject Component`'s properties in the Timeline more easily **without writing code**,<br> 
 or help you quickly develop prototypes.
 
 [//]: # (This project was originally developed mainly to expand the post-processing volume, 
 and will gradually improve other types in the future.)
 
-At present, there are some extensions to the original post-processing volume of Unity URP, which are used to dynamically adjust the volume in the timeline<br>
+At present, there are some extensions to the original Post-Processing Volume of Unity URP, which are used to dynamically adjust the volume in the Timeline<br>
 It can be directly imported into the project for use, or quickly expand through the "**MAO Timeline playable Wizard**" tool.
 
 ![](https://r2.youngmoe.com/ym-r2-bucket/2023/11/fb552984c57c7f0d554303d97d4387c6.gif)
@@ -39,21 +39,8 @@ It can be directly imported into the project for use, or quickly expand through 
 
 
 
-[//]: # (Currently supported:)
-
-[//]: # (- Bloom)
 
 ## Usage
-
-[//]: # (### Download/Installation)
-
-[//]: # ()
-[//]: # (Get it from one of the following sources:)
-
-[//]: # ()
-[//]: # (- Download the latest release from the [releases page]&#40;&#41;.)
-
-[//]: # (- Clone the repository: `git clone https://xx.git`.)
 
 ### Typical usecase
 
@@ -111,8 +98,6 @@ The namespace affects how the Track appears in the context menu when adding a Tr
 
 
 ## TODO
-- [x] Add attributes like `[Range()]`, `[Min()]`, `[Max()]` to the properties of the Clip.
-- [x] Optimize attribute adding method in "MAO Timeline Playable Wizard".
 - [ ] Add support for more parameters.
 - [ ] Support high-level settings such as `Blend Curves`, `Easing-in and Easing-out`.
 

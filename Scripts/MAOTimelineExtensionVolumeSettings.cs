@@ -8,8 +8,8 @@ namespace MAOTimelineExtension
     public class MAOTimelineExtensionVolumeSettings : MonoBehaviour
     {
         // https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@16.0/manual/Volumes-API.html#access-a-shared-volume-profile
-        [Tooltip(""+ 
-        @"- Access a shared Volume Profile
+        [Tooltip("" +
+                 @"- Access a shared Volume Profile
           One method is to access the Volume's shared Profile. You do this via the Volume's sharedProfile property. This gives you a reference to the instance of the Volume Profile asset. 
           If you modify this Volume Profile:
             - HDRP applies any changes you make to every Volume that uses this Volume Profile asset.
@@ -26,7 +26,22 @@ namespace MAOTimelineExtension
             - The modification you make reset when you exit Play mode.
             - It is your responsibility to destroy the duplicate Volume Profile when you no longer need it.
           Note that you can use this property to assign a different Volume Profile to the Volume.")]
-        public VolumeAccessType volumeAccessType = VolumeAccessType.Profile;
+
+        [SerializeField] private VolumeAccessType manualVolumeAccessType = VolumeAccessType.Profile;
+        
+        private VolumeAccessType volumeAccessType
+        {
+            get
+            {
+                if (!autoSwitchVolumeAccessType)
+                    return manualVolumeAccessType;
+
+                return Application.isPlaying ? VolumeAccessType.Profile : VolumeAccessType.SharedProfile;
+            }
+        }
+
+
+        [SerializeField] private bool autoSwitchVolumeAccessType = true;
 
         private Volume _volume;
         private Volume VolumeComponent
@@ -48,7 +63,9 @@ namespace MAOTimelineExtension
             {
                 if (_volumeProfile == null)
                 {
-                    _volumeProfile = volumeAccessType == VolumeAccessType.Profile? VolumeComponent.profile : VolumeComponent.sharedProfile;
+                    _volumeProfile = volumeAccessType == VolumeAccessType.Profile
+                        ? VolumeComponent.profile
+                        : VolumeComponent.sharedProfile;
                 }
                 return _volumeProfile;
             }
