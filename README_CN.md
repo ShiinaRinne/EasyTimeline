@@ -2,8 +2,8 @@
 
 ## Introduction
 
-这个库包含一些对 Unity Timeline 的扩展。<br>
-可以在不编写代码的情况下更轻松的通过 Timeline 编辑 Volume 或 GameObject Component 属性，或者快速开发原型以便自定义更多逻辑。
+主要是代码生成器，在不编写代码的情况下直接生成 Unity Timeline 对 Volume 或 Component 的扩展代码，便于快速开发原型以便自定义更多逻辑。  
+不复杂的逻辑也可以直接导入项目使用。
 
 目前这个 repo 里有一些 Unity URP 原有的后处理 Volume 的扩展，用来在 Timeline 中动态调节 Volume<br>
 可以直接导入项目使用, 也可以通过”**MAO Timeline Playable Wizard**”这个工具自行扩展。
@@ -12,8 +12,8 @@
 
 ## Features
 
-### 目前在 Volume 模式中支持的、可用的参数：
-
+### 目前在 Component/Volume 模式中支持的、可用的参数类型：
+- 常见的基础字段(int, float, bool, Vector, Color, Texture等)
 - `FloatParameter`
 - `IntParameter`
 - `BoolParameter`
@@ -22,10 +22,9 @@
 - `Vector4Parameter`
 - `ColorParameter`
 - `TextureParameter`
+- `Enum`(例如景深的 Gaussian 或 Bokeh 模式。目前可以生成代码，但 Clip 的 Inspector 面板中会一次性全部列出来，你可能需要重写指定 Clip 的面板)
 
 ### 目前不支持或没有经过完全测试的：
-
-- `Enum`(Example:`Film Grain's Type, Motion Blur's Quality, Tonemapping's Mode`)
 - `LayerMaskParameter`
 - `FloatRangeParameter`
 - `RenderTextureParameter`
@@ -56,7 +55,7 @@
 ### Wizard Usage
 
 这是一个可以快速生成 Timeline 扩展代码的工具<br>
-它可以直接获取当前 AppDomain 下的所有类，并通过 C# 反射来获取需要的字段，这样就不再需要自己写扩展了~
+它可以直接获取当前 AppDomain 下的所有类，并通过 C# 反射来获取需要的字段，这样就不再需要自己写扩展代码了~
 
 
 **Volume Component：**
@@ -87,9 +86,6 @@
 命名空间会影响在 `Timeline` 中添加 `Track` 时右键菜单的显示。当存在命名空间时，对应 Track 会生成在子菜单中，否则会生成在最外部。
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2024/11/namespace.png" width="50%">
 
-## TODO
-- [ ]  添加对更多类型参数的支持
-- [ ]  支持一些高级设置，例如`Blend Curves`, `Easing-in and Easing-out`.
 
 ## License
 

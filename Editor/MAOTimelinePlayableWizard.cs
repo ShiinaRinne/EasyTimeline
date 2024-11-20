@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.CodeDom.Compiler;
+using System.Globalization;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Timeline;
 using UnityEngine.Rendering;
-using MAOTimelineExtension.Scripts;
+using MAOTimelineExtension.Runtime;
 
 namespace MAOTimelineExtension.Editor
 {
@@ -45,15 +46,15 @@ namespace MAOTimelineExtension.Editor
 
             public int CompareTo(object obj)
             {
-                if (obj == null)
+                if (obj is null)
                     return 1;
 
                 UsableType other = (UsableType) obj;
 
-                if (other == null)
+                if (other is null)
                     throw new ArgumentException("This object is not a Variable.");
 
-                return name.ToLower().CompareTo(other.name.ToLower());
+                return string.Compare(name, other.name, StringComparison.CurrentCulture);
             }
 
             public static UsableType[] GetUsableTypesFromVariableArray(Variable[] variables)
@@ -110,15 +111,15 @@ namespace MAOTimelineExtension.Editor
 
             public int CompareTo(object obj)
             {
-                if (obj == null)
+                if (obj is null)
                     return 1;
 
                 UsableType other = (UsableType) obj;
 
-                if (other == null)
+                if (other is null)
                     throw new ArgumentException("This object is not a UsableType.");
 
-                return name.ToLower().CompareTo(other.name.ToLower());
+                return string.Compare(name, other.name, StringComparison.CurrentCulture);
             }
             
             public static UsableType[] GetUsableTypeArray(Type[] types, params UsableType[] additionalUsableTypes) =>
@@ -156,16 +157,37 @@ namespace MAOTimelineExtension.Editor
             /// for PropertyAttribute
             public enum PropertyAttributesType
             {
-                MinMax,
+                Range,
                 Min,
                 Max,
-                ColorHDR,
+                ColorVolumeParameter,
+                ColorUsage,
+                GradientUsage,
                 Null
             }
 
             public PropertyAttributesType propertyAttributesType = PropertyAttributesType.Null;
-            public float min;
-            public float max;
+            public ColorParameter colorParameter;
+            // volume
+            // min max
+            public MinFloatParameter minFloatParameter;
+            public MinIntParameter minIntParameter;
+            public MaxFloatParameter maxFloatParameter;
+            public MaxIntParameter maxIntParameter;
+            // range
+            public FloatRangeParameter floatRangeParameter;
+            public NoInterpFloatRangeParameter noInterpFloatRangeParameter;
+            // range
+            public ClampedFloatParameter clampedFloatParameter;
+            public ClampedIntParameter clampedIntParameter;
+            
+            // component
+            public ColorUsageAttribute colorUsage;
+            public GradientUsageAttribute gradientUsage;
+            public RangeAttribute range;
+            public MinAttribute min;
+            // public MaxAttribute max;
+
             // =================================
             
 
@@ -246,6 +268,8 @@ namespace MAOTimelineExtension.Editor
                     type = "Texture2D";
                 else if (fieldInfo.FieldType.Name == "Texture3D" || fieldInfo.FieldType.Name.Contains("Texture3DParameter"))
                     type = "Texture3D";
+                else if (IsVolumeParameterEnum(fieldInfo.FieldType))
+                    type = fieldInfo.FieldType.BaseType?.GenericTypeArguments[0].Name;
                 else
                     type = fieldInfo.FieldType.Name;
 
@@ -254,6 +278,8 @@ namespace MAOTimelineExtension.Editor
                 if (IsTypeBlendable(fieldInfo.FieldType))
                     usability = Usability.Blendable;
                 else if (IsTypeAssignable(fieldInfo.FieldType))
+                    usability = Usability.Assignable;
+                else if (IsVolumeParameterEnum(fieldInfo.FieldType))
                     usability = Usability.Assignable;
                 else
                     usability = Usability.Not;
@@ -277,7 +303,7 @@ namespace MAOTimelineExtension.Editor
 
             public void CreateSettingDefaultValueString(Component defaultValuesComponent)
             {
-                if (defaultValuesComponent == null)
+                if (defaultValuesComponent is null)
                 {
                     defaultValue = "";
                     return;
@@ -299,7 +325,7 @@ namespace MAOTimelineExtension.Editor
                         break;
                     case "double":
                         double defaultDoubleValue = (double) defaultValueObj;
-                        defaultValue = defaultDoubleValue.ToString();
+                        defaultValue = defaultDoubleValue.ToString(CultureInfo.CurrentCulture);
                         break;
                     case "Vector2":
                         Vector2 defaultVector2Value = (Vector2) defaultValueObj;
@@ -327,20 +353,65 @@ namespace MAOTimelineExtension.Editor
                     case "Texture":
                         defaultValue = "";
                         break;
-                    default:
-                        Enum defaultEnumValue = (Enum) defaultValueObj;
-                        Type enumSystemType = defaultEnumValue.GetType();
-                        string[] splits = enumSystemType.ToString().Split('+');
-                        string enumType = splits[^1];
-                        string enumConstantName = Enum.GetName(enumSystemType, defaultEnumValue);
-                        defaultValue = enumType + "." + enumConstantName;
+                    case "Gradient":
+                        if (defaultValueObj is Gradient gradient)
+                        {
+                            var alphaKeysStr = string.Join(", ", gradient.alphaKeys.Select(k => 
+                                $"new GradientAlphaKey({k.alpha}f, {k.time}f)"));
+                            var colorKeysStr = string.Join(", ", gradient.colorKeys.Select(k => 
+                                $"new GradientColorKey(new Color({k.color.r}f, {k.color.g}f, {k.color.b}f, {k.color.a}f), {k.time}f)"));
+            
+                            defaultValue = $"new Gradient() {{ " +
+                                           $"alphaKeys = new GradientAlphaKey[] {{ {alphaKeysStr} }}, " +
+                                           $"colorKeys = new GradientColorKey[] {{ {colorKeysStr} }} }}";
+                        }
                         break;
+                    default: // enum only
+                        try
+                        {
+                            Enum defaultEnumValue = (Enum)defaultValueObj;
+                            Type enumSystemType = defaultEnumValue.GetType();
+                            string[] splits = enumSystemType.ToString().Split('+');
+                            string enumType = splits[^1];
+                            string enumConstantName = Enum.GetName(enumSystemType, defaultEnumValue);
+                            defaultValue = enumType + "." + enumConstantName;
+                        }
+                        catch (InvalidCastException e)
+                        {
+                            Debug.LogError($"{e}\r\nDon't know how to handle {type} for {name} in {defaultValuesComponent.GetType()}");
+                        }
+                        break;
+                }
+
+                var attrs = fieldInfo.GetCustomAttributes();
+                foreach (var attr in attrs)
+                {
+                    switch (attr)
+                    {
+                        case ColorUsageAttribute colorUsageAttr:
+                            propertyAttributesType = PropertyAttributesType.ColorUsage;
+                            colorUsage = colorUsageAttr;
+                            break;
+                        case GradientUsageAttribute gradientUsageAttr:
+                            propertyAttributesType = PropertyAttributesType.GradientUsage;
+                            gradientUsage = gradientUsageAttr;
+                            break;
+                        case MinAttribute minAttr:
+                            propertyAttributesType = PropertyAttributesType.Min;
+                            min = minAttr;
+                            break;
+                        case RangeAttribute rangeAttr:
+                            propertyAttributesType = PropertyAttributesType.Range;
+                            range = rangeAttr;
+                            break;
+                    }
                 }
             }
 
-            
+            #region Volume Property Attributes
+
             /// <summary>
-            /// 获取字段的Range，Min，Max属性
+            /// 获取字段的 Range，Min，Max 属性。仅对 VolumeParameter 类型有效
             /// </summary>
             /// <typeparam name="T">T: ClampedFloat, RangeInt, MinFloat, etc</typeparam>
             public void GetPropertyAttributes<T>(object parameter) where T : VolumeParameter
@@ -348,41 +419,34 @@ namespace MAOTimelineExtension.Editor
                 var typeName = typeof(T).Name;
                 if(typeName.Contains("Range") || typeName.Contains("Clamped"))
                 {
-                    propertyAttributesType = PropertyAttributesType.MinMax;
-                    min = (float)GetPropertyAttributesMin(parameter);
-                    max = (float)GetPropertyAttributesMax(parameter);
+                    propertyAttributesType = PropertyAttributesType.Range;
+                    range = new RangeAttribute(GetPropertyAttributesMin(parameter), GetPropertyAttributesMax(parameter));
                 }
                 else if (typeName.Contains("Min"))
                 {
                     propertyAttributesType = PropertyAttributesType.Min;
-                    min = (float)GetPropertyAttributesMin(parameter);
-                }
-                else if (typeName.Contains("Max"))
-                {
-                    propertyAttributesType = PropertyAttributesType.Max;
-                    max = (float)GetPropertyAttributesMax(parameter);
+                    min = new MinAttribute(GetPropertyAttributesMin(parameter));
                 }
                 else if (typeName.Contains("ColorParameter"))
                 {
-                    if((parameter as ColorParameter).hdr
-                       // && (parameter as ColorParameter).showAlpha // 不管这个，都显示
-                       )
-                        propertyAttributesType = PropertyAttributesType.ColorHDR;
+                    propertyAttributesType = PropertyAttributesType.ColorVolumeParameter;
+                    colorParameter = (ColorParameter)parameter; 
                 }
             }
+
+            public float GetPropertyAttributesMax(object parameter)
+                => (float)Convert.ToDouble(parameter.GetType().GetField("max").GetValue(parameter));
             
-            public object GetPropertyAttributesMax(object parameter)
-                => parameter.GetType().GetField("max").GetValue(parameter);
             
-            public object GetPropertyAttributesMin(object parameter)
-                => parameter.GetType().GetField("min").GetValue(parameter);
+            public float GetPropertyAttributesMin(object parameter)
+                => (float)Convert.ToDouble(parameter.GetType().GetField("min").GetValue(parameter));
             
             public void CreateSettingDefaultValueStringVolume<T>(Volume defaultValuesComponent, UsableProperty prop)
                 where T : VolumeComponent
             {
                 // var component = (T)FormatterServices.GetUninitializedObject(typeof(T));
                 defaultValuesComponent.profile.TryGet<T>(out var component);
-                if (component == null)
+                if (component is null)
                 {
                     defaultValue = "";
                     return;
@@ -407,7 +471,7 @@ namespace MAOTimelineExtension.Editor
                         break;
                     case "double":
                         var defaultDoubleValue = (double) method.MakeGenericMethod(typeof(double)).Invoke(parameter, null);
-                        defaultValue = defaultDoubleValue.ToString();
+                        defaultValue = defaultDoubleValue.ToString(CultureInfo.CurrentCulture);
                         break;
                     case "Vector2":
                         var defaultVector2Value = (Vector2) method.MakeGenericMethod(typeof(Vector2)).Invoke(parameter, null);
@@ -435,13 +499,25 @@ namespace MAOTimelineExtension.Editor
                     case "Texture":
                         defaultValue = "";
                         break;
-                    default:
-                        Enum defaultEnumValue = (Enum) method.MakeGenericMethod(typeof(Enum)).Invoke(parameter, null);
-                        Type enumSystemType = defaultEnumValue.GetType();
-                        string[] splits = enumSystemType.ToString().Split('+');
-                        string enumType = splits[^1];
-                        string enumConstantName = Enum.GetName(enumSystemType, defaultEnumValue);
-                        defaultValue = enumType + "." + enumConstantName;
+                    default: // Enum
+                        Type enumType;
+                        string defaultVal;
+                        if (IsVolumeParameterEnum(prop.fieldInfo.FieldType))
+                        {
+                            enumType = prop.fieldInfo.FieldType.BaseType?.GenericTypeArguments[0];
+                            defaultVal = Enum.GetValues(enumType).GetValue(0).ToString();
+                        }
+                        else if (parameter is Enum defaultEnumValue)
+                        {
+                            enumType = defaultEnumValue.GetType();
+                            defaultVal = Enum.GetName(enumType, defaultEnumValue);
+                        }
+                        else
+                        {
+                            Debug.LogError($"Can't handle {prop.type} for {prop.name} in {defaultValuesComponent.GetType()}");
+                            break;
+                        }
+                        defaultValue = $"{enumType.Name}.{defaultVal}";
                         break;
                 }
                 
@@ -449,11 +525,14 @@ namespace MAOTimelineExtension.Editor
                 {
                     typeof(UsableProperty).GetMethod("GetPropertyAttributes")?
                         .MakeGenericMethod(parameter.GetType()).Invoke(prop, new object[] {parameter});
-                }catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     Debug.Log(e + " " + parameter.GetType() + " " + prop.type + " "+ prop.name);
                 }
             }
+
+            #endregion
 
             public bool ShowGUI(List<UsableProperty> allUsableProperties)
             {
@@ -476,9 +555,7 @@ namespace MAOTimelineExtension.Editor
                 GUI.color = originalColor;
                 
                 if (GUILayout.Button("Remove", GUILayout.Width(60f)))
-                {
                     removeThis = true;
-                }
 
                 EditorGUILayout.EndHorizontal();
                 return removeThis;
@@ -486,15 +563,15 @@ namespace MAOTimelineExtension.Editor
 
             public int CompareTo(object obj)
             {
-                if (obj == null)
+                if (obj is null)
                     return 1;
 
                 UsableType other = (UsableType) obj;
 
-                if (other == null)
+                if (other is null)
                     throw new ArgumentException("This object is not a UsableProperty.");
 
-                return name.ToLower().CompareTo(other.name.ToLower());
+                return string.Compare(name, other.name, StringComparison.CurrentCulture);
             }
 
             static string[] GetNameWithSortingArray(List<UsableProperty> usableProperties)
@@ -532,10 +609,10 @@ namespace MAOTimelineExtension.Editor
         {
             get
             {
-                if (_config == null)
+                if (_config is null)
                 {
                     _config = Resources.Load<MAOTimelineExtensionsConfigSO>("MAOTimelineExtensionsConfigSO");
-                    if (_config == null)
+                    if (_config is null)
                     {
                         Debug.LogError("Cannot find MAOTimelineExtensionsConfigSO in Resources folder!");
                     }
@@ -665,7 +742,8 @@ namespace MAOTimelineExtension.Editor
         static Type[] s_AssignableTypes =
         {
             typeof(string), typeof(bool), 
-            typeof(BoolParameter), typeof(TextureParameter)
+            typeof(BoolParameter), typeof(TextureParameter),
+            typeof(Gradient)
         };
 
         static string[] s_DisallowedPropertyNames = { "name" };
@@ -694,20 +772,14 @@ namespace MAOTimelineExtension.Editor
 
         static void Init()
         {
+            #region Component
+
             Type[] componentTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes())
                 .Where(t => typeof(Component).IsAssignableFrom(t)).Where(t => t.IsPublic).ToArray();
 
             List<UsableType> componentUsableTypesList = UsableType.GetUsableTypeArray(componentTypes).ToList();
             componentUsableTypesList.Sort();
             s_ComponentTypes = componentUsableTypesList.ToArray();
-
-            Type[] volumeComponentTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes())
-                .Where(t => typeof(VolumeComponent).IsAssignableFrom(t)).Where(t => t.IsPublic).ToArray();
-
-            List<UsableType> volumeComponentUsableTypesList =
-                UsableType.GetUsableTypeArray(volumeComponentTypes).ToList();
-            volumeComponentUsableTypesList.Sort();
-            s_VolumeComponentTypes = volumeComponentUsableTypesList.ToArray();
 
             UsableType gameObjectUsableType = new UsableType(typeof(GameObject));
             UsableType[] defaultUsableTypes = UsableType.GetUsableTypeArray(componentTypes, gameObjectUsableType);
@@ -736,16 +808,29 @@ namespace MAOTimelineExtension.Editor
             List<UsableType> scriptVariableTypeList = s_BehaviourVariableTypes.ToList();
             scriptVariableTypeList.Sort();
             s_BehaviourVariableTypes = scriptVariableTypeList.ToArray();
+
+            #endregion
+
+            #region Volume
+
+            Type[] volumeComponentTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes())
+                .Where(t => typeof(VolumeComponent).IsAssignableFrom(t)).Where(t => t.IsPublic).ToArray();
+
+            List<UsableType> volumeComponentUsableTypesList = UsableType.GetUsableTypeArray(volumeComponentTypes).ToList();
+            volumeComponentUsableTypesList.Sort();
+            s_VolumeComponentTypes = volumeComponentUsableTypesList.ToArray();
+
+            #endregion
         }
 
         void OnGUI()
         {
-            if (s_ComponentTypes == null || s_TrackBindingTypes == null || s_ExposedReferenceTypes == null ||
-                s_BehaviourVariableTypes == null || s_VolumeComponentTypes == null)
+            if (s_ComponentTypes is null || s_TrackBindingTypes is null || s_ExposedReferenceTypes is null ||
+                s_BehaviourVariableTypes is null || s_VolumeComponentTypes is null)
                 Init();
 
-            if (s_ComponentTypes == null || s_TrackBindingTypes == null || s_ExposedReferenceTypes == null ||
-                s_BehaviourVariableTypes == null || s_VolumeComponentTypes == null)
+            if (s_ComponentTypes is null || s_TrackBindingTypes is null || s_ExposedReferenceTypes is null ||
+                s_BehaviourVariableTypes is null || s_VolumeComponentTypes is null)
             {
                 EditorGUILayout.HelpBox("Failed to initialise.", MessageType.Error);
                 return;
@@ -822,7 +907,7 @@ namespace MAOTimelineExtension.Editor
             playableName = EditorGUILayout.TextField(m_PlayableNameContent, playableName);
 
             playableNameNotEmpty = !string.IsNullOrEmpty(playableName);
-            playableNameFormatted = CodeGenerator.IsValidLanguageIndependentIdentifier(playableName);
+            playableNameFormatted = IsValidIdentifier(playableName);
             if (!playableNameNotEmpty || !playableNameFormatted)
             {
                 EditorGUILayout.HelpBox(
@@ -1028,7 +1113,7 @@ namespace MAOTimelineExtension.Editor
 
         void StandardBlendPlayablePropertyGUI(bool findNewProperties)
         {
-            if (findNewProperties || m_TrackBindingProperties == null && m_TrackBindingFields == null)
+            if (findNewProperties || m_TrackBindingProperties is null && m_TrackBindingFields is null)
             {
                 m_TrackBindingUsableProperties.Clear();
 
@@ -1038,11 +1123,12 @@ namespace MAOTimelineExtension.Editor
                     .Where(x => x.CanWrite && x.CanRead)
                     .Where(x => HasAllowedName(x));
                 // Uncomment the below to stop Obsolete properties being selectable.
-                //propertyInfos = propertyInfos.Where (x => !Attribute.IsDefined (x, typeof(ObsoleteAttribute)));
+                propertyInfos = propertyInfos.Where (x => !Attribute.IsDefined (x, typeof(ObsoleteAttribute)));
                 m_TrackBindingProperties = propertyInfos.ToArray();
                 foreach (PropertyInfo trackBindingProperty in m_TrackBindingProperties)
                 {
-                    m_TrackBindingUsableProperties.Add(new UsableProperty(trackBindingProperty));
+                    // Uncomment the below to add properties
+                    // m_TrackBindingUsableProperties.Add(new UsableProperty(trackBindingProperty));
                 }
 
                 IEnumerable<FieldInfo> fieldInfos = TrackBinding.type.GetFields(BindingFlags.Instance | BindingFlags.Public);
@@ -1063,9 +1149,36 @@ namespace MAOTimelineExtension.Editor
 
             EditorGUILayout.LabelField(m_StandardBlendPlayablePropertiesContent);
 
-            if (GUILayout.Button("Add", GUILayout.Width(40f)))
+            var availableProperties = m_TrackBindingUsableProperties
+                .Where(property => !standardBlendPlayableProperties.Any(p => p.name == property.name)).ToList();
+            if (availableProperties.Count > 0)
             {
-                standardBlendPlayableProperties.Add(m_TrackBindingUsableProperties[0].GetDuplicate());
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Add", GUILayout.Width(60f)))
+                {
+                    var property = availableProperties[0];
+                    standardBlendPlayableProperties.Add(CreateDuplicateProperty(property));
+                }
+        
+                if (GUILayout.Button("Add All", GUILayout.Width(60f)))
+                {
+                    standardBlendPlayableProperties.AddRange(availableProperties.Select(CreateDuplicateProperty));
+                }
+                
+                if(GUILayout.Button("Clear", GUILayout.Width(60f)))
+                {
+                    standardBlendPlayableProperties.Clear();
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("You have added all properties.", MessageType.Info);
+                
+                if(GUILayout.Button("Clear", GUILayout.Width(60f)))
+                {
+                    standardBlendPlayableProperties.Clear();
+                }
             }
             
             int indexToRemove = -1;
@@ -1088,18 +1201,12 @@ namespace MAOTimelineExtension.Editor
 
         void VolumeComponentPropertyGUI(bool findNewProperties)
         {
-            if (findNewProperties || m_TrackBindingProperties == null && m_TrackBindingFields == null)
+            if (findNewProperties || m_TrackBindingProperties is null && m_TrackBindingFields is null)
             {
                 m_TrackBindingUsableProperties.Clear();
 
-                IEnumerable<PropertyInfo> propertyInfos = TrackBinding.type.GetProperties();
-                propertyInfos = propertyInfos.Where(x => x.Name == "parameters");
-
-                m_TrackBindingProperties = propertyInfos.ToArray();
-
-                IEnumerable<FieldInfo> fieldInfos = TrackBinding.type.GetFields();
-
-                m_TrackBindingFields = fieldInfos.ToArray();
+                m_TrackBindingProperties = TrackBinding.type.GetProperties().Where(x => x.Name == "parameters").ToArray();
+                m_TrackBindingFields = TrackBinding.type.GetFields().ToArray();
                 foreach (FieldInfo trackBindingField in m_TrackBindingFields)
                 {
                     if (trackBindingField.Name == "active")
@@ -1194,6 +1301,11 @@ namespace MAOTimelineExtension.Editor
 
         static bool IsTypeAssignable(Type type) 
             => type.IsEnum || s_AssignableTypes.Contains(type);
+        
+        static bool IsVolumeParameterEnum(Type type)
+        {
+            return type.BaseType?.GenericTypeArguments is Type[] { Length: > 0 } args && args[0].IsEnum;
+        }
 
         static bool HasAllowedName(PropertyInfo propertyInfo)
             => !s_DisallowedPropertyNames.Contains(propertyInfo.Name);
@@ -1220,7 +1332,7 @@ namespace MAOTimelineExtension.Editor
                 if (variables[i].GUI(usableTypes))
                     indexToRemove = i;
 
-                if (!CodeGenerator.IsValidLanguageIndependentIdentifier(variables[i].name))
+                if (!IsValidIdentifier(variables[i].name))
                 {
                     allNamesValid = false;
                 }
@@ -1376,6 +1488,14 @@ namespace MAOTimelineExtension.Editor
                 EditorGUILayout.HelpBox(content.tooltip, MessageType.Info);
                 EditorGUILayout.Space();
             }
+        }
+        
+        static bool IsValidIdentifier(string identifier)
+        {
+            if (string.IsNullOrEmpty(identifier)) return false;
+    
+            string pattern = @"^[a-zA-Z_][a-zA-Z0-9_]*$";
+            return Regex.IsMatch(identifier, pattern);
         }
 
         void ResetWindow()

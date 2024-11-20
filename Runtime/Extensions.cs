@@ -2,7 +2,7 @@
 using System.Linq;
 using UnityEngine.Rendering;
 
-namespace MAOTimelineExtension.Scripts
+namespace MAOTimelineExtension.Runtime
 {
     public static class MAOExtensions
     {

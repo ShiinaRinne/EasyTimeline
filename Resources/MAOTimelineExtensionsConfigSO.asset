@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: MAOTimelineExtensionsConfigSO
   m_EditorClassIdentifier: 
   rootFolderPath: Assets/TimelineExtensions
-  defaultNameSpace: WithNameSpace
+  defaultNameSpace: SR.Timeline.VolumeExtensions

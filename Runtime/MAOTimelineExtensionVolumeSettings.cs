@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace MAOTimelineExtension
+namespace MAOTimelineExtension.Runtime
 {
     [ExecuteAlways]
     [DisallowMultipleComponent]
@@ -35,7 +35,7 @@ namespace MAOTimelineExtension
             {
                 if (!autoSwitchVolumeAccessType)
                     return manualVolumeAccessType;
-
+                
                 return Application.isPlaying ? VolumeAccessType.Profile : VolumeAccessType.SharedProfile;
             }
         }

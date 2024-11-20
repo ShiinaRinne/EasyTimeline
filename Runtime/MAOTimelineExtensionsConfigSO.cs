@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace MAOTimelineExtension
+namespace MAOTimelineExtension.Runtime
 {
     [CreateAssetMenu(fileName = "MAOTimelineExtensionsConfigSO", menuName = "MAOTimelineExtensions/ConfigSO", order = 0)]
     public class MAOTimelineExtensionsConfigSO : ScriptableObject

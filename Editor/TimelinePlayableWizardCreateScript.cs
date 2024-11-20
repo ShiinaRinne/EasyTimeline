@@ -2,7 +2,7 @@
 using System.IO;
 using System.Linq;
 using UnityEditor;
-using MAOTimelineExtension.Scripts;
+using MAOTimelineExtension.Runtime;
 
 namespace MAOTimelineExtension.Editor
 {
@@ -86,8 +86,7 @@ namespace MAOTimelineExtension.Editor
         string NameSpaceStart()
         {
             return string.IsNullOrEmpty(Config.defaultNameSpace) ? "" : $@"namespace {Config.defaultNameSpace}
-{{
-";
+{{";
         }
         
         string NameSpaceEnd()
@@ -100,7 +99,7 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                returnVal += $"{k_Tab.Repeat(3)}behaviour.{prop.NameWithCapital} = {prop.name};\r\n";
+                returnVal += $"{k_Tab.Repeat(3)}behaviour.{prop.name} = {prop.name};\r\n";
             }
 
             return returnVal;
@@ -146,6 +145,7 @@ namespace MAOTimelineExtension.Editor
 {AllNeededNameSpace()}
 
 {NameSpaceStart()}
+    [Serializable]
     public class {playableName}{k_TimelineClipBehaviourSuffix} : PlayableBehaviour
     {{
 {VolumeBlendScriptPlayablePropertiesToString()}
@@ -165,6 +165,9 @@ namespace MAOTimelineExtension.Editor
     public class {playableName}{k_PlayableBehaviourMixerSuffix} : PlayableBehaviour
     {{
 {VolumeBlendTrackBindingPropertiesDefaultsDeclarationToString()}
+
+{VolumeBlendTrackBindingPropertiesBlendedDeclarationToString()}
+
         {TrackBinding.name} m_TrackBinding;
         bool m_FirstFrameHappened;
 
@@ -177,7 +180,14 @@ namespace MAOTimelineExtension.Editor
             }}
 {MixerTrackBindingLocalVariableToString()}
 
+            if(!m_FirstFrameHappened)
+            {{
+{VolumeSaveOriginalValue()}
+                m_FirstFrameHappened = true;
+            }}
+
             int inputCount = playable.GetInputCount();
+
 {VolumeBlendedVariablesCreationToString()}
             float totalWeight = 0f;
             float greatestWeight = 0f;
@@ -189,23 +199,26 @@ namespace MAOTimelineExtension.Editor
                 ScriptPlayable<{playableName}{k_TimelineClipBehaviourSuffix}> inputPlayable =(ScriptPlayable<{playableName}{k_TimelineClipBehaviourSuffix}>)playable.GetInput(i);
                 {playableName}{k_TimelineClipBehaviourSuffix} input = inputPlayable.GetBehaviour();
                 
-{VolumeAssignedVariablesWeightedIncrementationToString()}
+{VolumeBlendedVariablesWeightedIncrementationToString()}
                 totalWeight += inputWeight;
 
                 if (inputWeight > greatestWeight)
                 {{
+{VolumeBlendAssignableVariablesAssignedBasedOnGreatestWeightToString()}                    
                     greatestWeight = inputWeight;
                 }}
 
                 if (!Mathf.Approximately (inputWeight, 0f))
                     currentInputs++;
             }}
-{VolumeTrackBindingPropertiesAssignableAssignmentToString()}
+{VolumeTrackBindingPropertiesBlendedAssignmentToString()}
+            
+{VolumeBlendTrackBindingPropertiesAssignableAssignmentToString()}
         }}
 
 
 
-        public override void OnPlayableDestroy (Playable playable)
+        public override void OnPlayableDestroy(Playable playable)
         {{
             m_FirstFrameHappened = false;
 
@@ -243,16 +256,17 @@ namespace MAOTimelineExtension.Editor
 ";
         }
         
-        string VolumeBlendScriptPlayablePropertiesGetPropertyAttributes(UsableProperty prop)
+        string BlendScriptPlayablePropertiesGetPropertyAttributes(UsableProperty prop)
         {
-            string isFloat = prop.type == "float" ? "f" : "";
             return prop.propertyAttributesType switch
             {
-                UsableProperty.PropertyAttributesType.MinMax => $"[Range({prop.min}{isFloat}, {prop.max}{isFloat})] ",
-                UsableProperty.PropertyAttributesType.Min => $"[Min({prop.min}{isFloat})] ",
-                UsableProperty.PropertyAttributesType.Max => $"[Max({prop.max}{isFloat})] ",
-                UsableProperty.PropertyAttributesType.ColorHDR => "[ColorUsage(true, true)] ",
-                _ => ""
+                UsableProperty.PropertyAttributesType.Range => $"[Range({prop.range.min}f, {prop.range.max}f)] ",
+                UsableProperty.PropertyAttributesType.Min => $"[Min({prop.min.min}f)] ",
+                UsableProperty.PropertyAttributesType.Max => $"[Max({prop.range.max}f)] ", 
+                UsableProperty.PropertyAttributesType.ColorVolumeParameter => $"[ColorUsage({(prop.colorParameter.hdr ? "true," : "false,")} {(prop.colorParameter.showAlpha ? "true" : "false")})] ",
+                UsableProperty.PropertyAttributesType.ColorUsage => $"[ColorUsage({(prop.colorUsage.showAlpha ? "true," : "false,")} {(prop.colorUsage.hdr ? "true" : "false")})] ",
+                UsableProperty.PropertyAttributesType.GradientUsage => $"[GradientUsage({(prop.gradientUsage.hdr ? "true" : "false")})] ",
+                _ => string.Empty
             };
         }
 
@@ -261,8 +275,10 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                string attributes = VolumeBlendScriptPlayablePropertiesGetPropertyAttributes(prop);
-                if (prop.defaultValue == "")
+                string attributes = BlendScriptPlayablePropertiesGetPropertyAttributes(prop);
+                if (prop.type.EndsWith("Parameter"))
+                    returnVal += $"{k_Tab.Repeat(2)}{attributes} public {prop.type}"; // TODO: 看看这里是啥东西，忘了. 原本没加也没事，但旧的加了这个
+                else if (prop.defaultValue == "")
                 {
                     returnVal += $"{k_Tab.Repeat(2)}{attributes}public {prop.type} {prop.name};\r\n";
                 }
@@ -280,7 +296,7 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                returnVal += $"{k_Tab.Repeat(2)}public {prop.type} {prop.NameWithCapital};\r\n";
+                returnVal += $"{k_Tab.Repeat(2)}public {prop.type} {prop.name};\r\n";
             }
 
             return returnVal;
@@ -292,6 +308,17 @@ namespace MAOTimelineExtension.Editor
             foreach (var prop in postProcessVolumeProperties)
             {
                 returnVal += $"{k_Tab.Repeat(2)}{prop.type} {prop.NameAsPrivateDefault};\n";
+            }
+
+            return returnVal;
+        }
+        
+        string VolumeBlendTrackBindingPropertiesBlendedDeclarationToString()
+        {
+            string returnVal = "";
+            foreach (var prop in postProcessVolumeProperties)
+            {
+                returnVal += $"{k_Tab.Repeat(2)}{prop.type} {prop.NameAsPrivateAssigned};\n";
             }
 
             return returnVal;
@@ -324,6 +351,9 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
+                if(prop.usability != UsableProperty.Usability.Blendable)
+                    continue;
+                
                 string type = prop.type == "int" ? "float" : prop.type;
                 string zeroVal = type == "int" ? "0f" : prop.ZeroValueAsString();
                 returnVal += $"{k_Tab.Repeat(3)}{type} {prop.NameAsLocalBlended} = {zeroVal};\n";
@@ -332,46 +362,33 @@ namespace MAOTimelineExtension.Editor
             return returnVal;
         }
 
-        string VolumeAssignedVariablesWeightedIncrementationToString()
+        string VolumeBlendedVariablesWeightedIncrementationToString()
         {
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if (prop.usability != UsableProperty.Usability.Blendable)
-                {
-                    returnVal += $"{k_Tab.Repeat(4)}{prop.NameAsLocalBlended} = inputWeight > 0.5f ? input.{prop.name.Title()} : {prop.NameAsLocalBlended};\n";
-                }
-                else
-                {
-                    returnVal += $"{k_Tab.Repeat(4)}{prop.NameAsLocalBlended} += input.{prop.name.Title()} * inputWeight;\n";
-                }
+                if(prop.usability == UsableProperty.Usability.Blendable)
+                    returnVal += $"{k_Tab.Repeat(4)}{prop.NameAsLocalBlended} += input.{prop.name} * inputWeight;\n";
             }
 
             return returnVal;
         }
 
-        string VolumeTrackBindingPropertiesAssignableAssignmentToString()
+        string VolumeTrackBindingPropertiesBlendedAssignmentToString()
         {
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if (prop.usability != UsableProperty.Usability.Blendable)
-                {
-                    returnVal += $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = {prop.NameAsLocalBlended};\n";
-                }
+                if (prop.usability != UsableProperty.Usability.Blendable) continue;
+                
+                if (prop.type == "int")
+                    returnVal += $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = Mathf.RoundToInt({prop.NameAsLocalBlended} + {prop.NameAsPrivateDefault} * (1f-totalWeight));\n";
                 else
-                {
-                    if (prop.type == "int")
-                        returnVal +=
-                            $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = Mathf.RoundToInt({prop.NameAsLocalBlended} + {prop.NameAsPrivateDefault} * (1f-totalWeight));\n";
-                    else
-                        returnVal +=
-                            $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = {prop.NameAsLocalBlended} + {prop.NameAsPrivateDefault} * (1f-totalWeight);\n";
-                }
+                    returnVal += $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = {prop.NameAsLocalBlended} + {prop.NameAsPrivateDefault} * (1f-totalWeight);\n";
             }
-
             return returnVal;
         }
+
         
         string AllNeededNameSpace()
         {
@@ -380,7 +397,7 @@ using UnityEngine;
 using UnityEngine.Timeline;
 using UnityEngine.Playables;
 using UnityEngine.Rendering;
-using MAOTimelineExtension;
+using MAOTimelineExtension.Runtime;
 " + AdditionalNamespacesToString();
         }
         
@@ -488,27 +505,11 @@ using MAOTimelineExtension;
         #endregion
 
         string MixerTrackBindingLocalVariableToString() =>
-            workType switch
-            {
-                WorkType.Component =>
-                    k_Tab + k_Tab + TrackBinding.name + " trackBinding = playerData as " + TrackBinding.name + ";\n\n" +
-                    k_Tab + k_Tab + "if(!trackBinding)\n" +
-                    k_Tab + k_Tab + k_Tab + "return;\n" +
-                    "\n",
-
-                WorkType.VolumeComponent =>
-                    @$"{k_Tab.Repeat(3)}((MAOTimelineExtensionVolumeSettings) playerData).VolumeProfile.TryGet(out m_TrackBinding);
+            @$"{k_Tab.Repeat(3)}((MAOTimelineExtensionVolumeSettings) playerData).VolumeProfile.TryGet(out m_TrackBinding);
             if (m_TrackBinding == null)
                 return;
+";
             
-            if(!m_FirstFrameHappened)
-            {{
-{VolumeSaveOriginalValue()}
-                m_FirstFrameHappened = true;
-            }}
-",
-                _ => ""
-            };
 
         string StandardBlendPlayableAsset()
         {
@@ -648,12 +649,11 @@ using MAOTimelineExtension;
             string returnVal = "";
             foreach (var prop in standardBlendPlayableProperties)
             {
+                string attributes = BlendScriptPlayablePropertiesGetPropertyAttributes(prop);
                 if (prop.defaultValue == "")
-                    returnVal += k_Tab + "public " + prop.type + " " + prop.name + ";\n";
+                    returnVal += k_Tab + $"{attributes}public " + prop.type + " " + prop.name + ";\n";
                 else
-                {
-                    returnVal += k_Tab + "public " + prop.type + " " + prop.name + " = " + prop.defaultValue + ";\n";
-                }
+                    returnVal += k_Tab + $"{attributes}public " + prop.type + " " + prop.name + " = " + prop.defaultValue + ";\n";
             }
 
             return returnVal;
@@ -697,6 +697,12 @@ using MAOTimelineExtension;
                     case "double":
                         returnVal += k_Tab + k_Tab + "if(!Mathf.Approximately((float)m_TrackBinding." + prop.name +
                                      ",(float)" + prop.NameAsPrivateAssigned + "))\n";
+                        returnVal += k_Tab + k_Tab + k_Tab + prop.NameAsPrivateDefault + " = m_TrackBinding." +
+                                     prop.name + ";\n";
+                        break;
+                    case "Gradient":
+                        returnVal += k_Tab + k_Tab + "if(!m_TrackBinding." + prop.name + ".Equals(" +
+                                     prop.NameAsPrivateAssigned + "))\n";
                         returnVal += k_Tab + k_Tab + k_Tab + prop.NameAsPrivateDefault + " = m_TrackBinding." +
                                      prop.name + ";\n";
                         break;
@@ -746,6 +752,37 @@ using MAOTimelineExtension;
                 if (prop.usability == UsableProperty.Usability.Blendable)
                     returnVal += k_Tab + k_Tab + k_Tab + prop.NameAsLocalBlended + " += input." + prop.name + " * inputWeight;\n";
             }
+
+            return returnVal;
+        }
+
+        string VolumeBlendAssignableVariablesAssignedBasedOnGreatestWeightToString()
+        {
+            string returnVal = string.Empty;
+            foreach (var prop in postProcessVolumeProperties)
+            {
+                if (prop.usability == UsableProperty.Usability.Assignable)
+                {
+                    returnVal += $"{k_Tab.Repeat(5)}m_TrackBinding.{prop.name}.value = input.{prop.name};\r\n";
+                }
+            }
+
+            return returnVal;
+        }
+
+        string VolumeBlendTrackBindingPropertiesAssignableAssignmentToString()
+        {
+            string returnVal = string.Empty;
+            returnVal += $"{k_Tab.Repeat(3)}if(currentInputs != 1 && 1f - totalWeight > greatestWeight)\r\n";
+            returnVal += $"{k_Tab.Repeat(3)}{{\r\n";
+            foreach (var prop in postProcessVolumeProperties)
+            {
+                if (prop.usability == UsableProperty.Usability.Assignable)
+                {
+                    returnVal += $"{k_Tab.Repeat(4)}m_TrackBinding.{prop.name}.value = {prop.NameAsPrivateDefault};\r\n";
+                }
+            }
+            returnVal += $"{k_Tab.Repeat(3)}}}";
 
             return returnVal;
         }

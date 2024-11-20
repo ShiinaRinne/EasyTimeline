@@ -3,9 +3,9 @@ English | [中文](README_CN.md)
 
 ## Introduction
 
-Some extensions for Unity Timeline. 
-You can edit `Volume` or `GameObject Component`'s properties in the Timeline more easily **without writing code**,<br> 
-or help you quickly develop prototypes.
+A code generator tool for `Unity Timeline` that creates extension code for `Volume` or `Component` without writing code manually. 
+It helps rapid prototyping and allows for easy customization of additional logic.
+Non-complex generated code can be directly imported into projects.
 
 [//]: # (This project was originally developed mainly to expand the post-processing volume, 
 and will gradually improve other types in the future.)
@@ -16,7 +16,8 @@ It can be directly imported into the project for use, or quickly expand through 
 ![](https://r2.youngmoe.com/ym-r2-bucket/2023/11/fb552984c57c7f0d554303d97d4387c6.gif)
 
 ## Features
-### Now tested parameters that work fine in Volume Mode:
+### Currently supported parameter types in Component/Volume mode:
+- Common basic fields (`int`, `float`, `bool`, `Vector`, `Color`, `Texture`, etc.)
 - `FloatParameter`
 - `IntParameter`
 - `BoolParameter`
@@ -25,10 +26,10 @@ It can be directly imported into the project for use, or quickly expand through 
 - `Vector4Parameter`
 - `ColorParameter`
 - `TextureParameter`
+- `Enum` (e.g., `Depth of Field's` **Gaussian** or **Bokeh** modes. Code generation is supported, 
+but the Clip's Inspector panel will list all options at once - you may need to customize the Clip's panel)
 
-
-### Parameters not yet supported or tested:
-- `Enum`(Example: `Film Grain's Type, Motion Blur's Quality, Tonemapping's Mode`)
+### Currently unsupported or not fully tested:
 - `LayerMaskParameter`
 - `FloatRangeParameter`
 - `RenderTextureParameter`
@@ -36,8 +37,6 @@ It can be directly imported into the project for use, or quickly expand through 
 - `ObjectParameter`
 - `AnimationCurveParameter`
 - `TextureCurveParameter`
-
-
 
 
 ## Usage
@@ -59,11 +58,6 @@ It can be directly imported into the project for use, or quickly expand through 
 > It is recommended to use `Shared Profile` in Editor mode and `Profile` in Play mode.<br>
 > If you need to use this switching method, you can check `AutoSwitchType` in `TimelineExtensionVolumeSettings`<br>
 > For more information, please refer to [Unity Documentation](https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@16.0/manual/Volumes-API.html)
-
-### Wizard Usage
-This is a tool that can quickly generate Timeline extensions for you. <br>
-It can directly obtain all classes which under current AppDomain and get the required fields through reflection.<br>
-You no longer need to fill in manually.
 
 
 #### VolumeComponent:
@@ -96,10 +90,6 @@ The namespace affects how the Track appears in the context menu when adding a Tr
 
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2024/11/namespace.png" width="50%">
 
-
-## TODO
-- [ ] Add support for more parameters.
-- [ ] Support high-level settings such as `Blend Curves`, `Easing-in and Easing-out`.
 
 ## License
 [MIT License](https://github.com/ShiinaRinne/TimelineExtensions/blob/master/LICENSE)
