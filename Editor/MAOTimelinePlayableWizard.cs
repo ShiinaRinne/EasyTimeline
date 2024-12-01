@@ -753,14 +753,20 @@ namespace MAOTimelineExtension.Editor
         {
             MaoTimelinePlayableWizard wizard = GetWindow<MaoTimelinePlayableWizard>(true, "MAO Timeline Playable Wizard", true);
 
-            Vector2 position = Vector2.zero;
-            SceneView sceneView = SceneView.lastActiveSceneView;
-            if (sceneView != null)
-                position = new Vector2(sceneView.position.x, sceneView.position.y);
+            float screenWidth = Screen.currentResolution.width;
+            float screenHeight = Screen.currentResolution.height;
+            
+            float windowX = (screenWidth - k_WindowWidth) * 0.5f;
+            float windowY = (screenHeight - Mathf.Min(screenHeight * 0.8f, k_MaxWindowHeight)) * 0.5f;
+            
+            float scale = EditorGUIUtility.pixelsPerPoint;
+            
+            windowX = Mathf.Clamp(windowX, 0, screenWidth - k_WindowWidth) / scale;
+            windowY = Mathf.Clamp(windowY, 0, screenHeight - k_MaxWindowHeight) / scale;
             
             wizard.position = new Rect(
-                position.x + k_ScreenSizeWindowBuffer, 
-                position.y + k_ScreenSizeWindowBuffer,
+                windowX, 
+                windowY,
                 k_WindowWidth, 
                 Mathf.Min(Screen.currentResolution.height - k_ScreenSizeWindowBuffer, k_MaxWindowHeight));
 
