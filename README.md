@@ -79,7 +79,9 @@ but the Clip's Inspector panel will list all options at once - you may need to c
 You can find it in `Assets/TimelineExtensions`
 
 > [!IMPORTANT]
-> The Enum type is currently not supported. When you need it (such as Gaussian or Boken's DOF), it is recommended to create it in the following way.<br>
+> For Enum types (such as Gaussian or Bokeh mode in Depth of Field), the default rule-based custom Editor generation is not supported.   
+> So It will list all fields at once, which might be inconvenient to view.   
+> You can either split them into multiple Tracks as shown below, or write your own code for custom Clip Editor extensions  
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/48d3bda1b26b762ac0477f2b94fc2a75.png" width="50%">
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/8d325d458c0209b9068427474dce6377.png" width="50%">
 

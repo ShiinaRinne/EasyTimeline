@@ -7,6 +7,7 @@ namespace MAOTimelineExtension.Runtime
     public class MAOTimelineExtensionsConfigSO : ScriptableObject
     {
         public string rootFolderPath = "Assets/TimelineExtensions";
-        public string defaultNameSpace = "MAOTimelineExtension.VolumeExtensions";
+        public string volumeDefaultNameSpace = "MAOTimelineExtension.VolumeExtensions";
+        public string componentDefaultNameSpace = "MAOTimelineExtension.ComponentExtensions";
     }
 }

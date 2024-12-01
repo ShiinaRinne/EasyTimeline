@@ -13,7 +13,7 @@
 ## Features
 
 ### 目前在 Component/Volume 模式中支持的、可用的参数类型：
-- 常见的基础字段(int, float, bool, Vector, Color, Texture等)
+- 常见的基础字段(`int`, `float`, `bool`, `Vector`, `Color`, `Texture` 等)
 - `FloatParameter`
 - `IntParameter`
 - `BoolParameter`
@@ -76,7 +76,8 @@
 5. 最后点 `Create` 就可以了，等编译完之后就可以使用，你可以在 `Assets/TimelineExtensions` 找到生成的脚本
 
 > [!IMPORTANT]
-> 目前不支持 Enum 类型(例如景深的 Gaussian 或 Bokeh 模式)，如果确实需要的话，可以参考以下方法分成多个 Track 制作：<br>
+> 对 Enum 类型(例如景深的 Gaussian 或 Bokeh 模式)，不支持根据原本的规则生成自定义的 Editor，会一次性将全部字段列出来，可能会不方便查看。
+> 可以参考以下方法分成多个 Track 制作，或自己写代码完成 Clip 的 Editor 扩展<br>
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/48d3bda1b26b762ac0477f2b94fc2a75.png" width="50%">
 > <img src="https://r2.youngmoe.com/ym-r2-bucket/2023/11/8d325d458c0209b9068427474dce6377.png" width="50%">
 
