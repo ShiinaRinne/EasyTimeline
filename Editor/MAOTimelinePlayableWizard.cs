@@ -196,6 +196,7 @@ namespace MAOTimelineExtension.Editor
             public string defaultValue;
             public Usability usability;
             public UsablePropertyType usablePropertyType;
+            public bool blendable;
             public PropertyInfo propertyInfo;
             public FieldInfo fieldInfo;
 
@@ -276,7 +277,10 @@ namespace MAOTimelineExtension.Editor
                 name = fieldInfo.Name;
 
                 if (IsTypeBlendable(fieldInfo.FieldType))
+                {
                     usability = Usability.Blendable;
+                    blendable = true;
+                }
                 else if (IsTypeAssignable(fieldInfo.FieldType))
                     usability = Usability.Assignable;
                 else if (IsVolumeParameterEnum(fieldInfo.FieldType))
@@ -539,8 +543,7 @@ namespace MAOTimelineExtension.Editor
                 bool removeThis = false;
                 EditorGUILayout.BeginHorizontal();
 
-                typeIndex = EditorGUILayout.Popup(typeIndex, GetNameWithSortingArray(allUsableProperties),
-                    GUILayout.Width(200f));
+                typeIndex = EditorGUILayout.Popup(typeIndex, GetNameWithSortingArray(allUsableProperties), GUILayout.Width(200f));
                 type = allUsableProperties[typeIndex].type;
                 name = allUsableProperties[typeIndex].name;
                 usablePropertyType = allUsableProperties[typeIndex].usablePropertyType;
@@ -553,6 +556,11 @@ namespace MAOTimelineExtension.Editor
                 if (!isTypeSupported) GUI.color = Color.red;
                 GUILayout.Label(type, GUILayout.Width(150f)); // unsupported types are red
                 GUI.color = originalColor;
+                
+                EditorGUI.BeginDisabledGroup(usability != Usability.Blendable);
+                var content = new GUIContent("", "Toggle to enable/disable property blending");
+                blendable = EditorGUILayout.Toggle(content, blendable, GUILayout.Width(60f));
+                EditorGUI.EndDisabledGroup();
                 
                 if (GUILayout.Button("Remove", GUILayout.Width(60f)))
                     removeThis = true;
@@ -584,6 +592,7 @@ namespace MAOTimelineExtension.Editor
                     : new UsableProperty(fieldInfo);
                 duplicate.defaultValue = defaultValue;
                 duplicate.typeIndex = typeIndex;
+                duplicate.blendable = blendable;
                 return duplicate;
             }
         }
@@ -715,12 +724,11 @@ namespace MAOTimelineExtension.Editor
         const string k_ShowHelpBoxesKey = "TimelinePlayableWizard_ShowHelpBoxes";
         const string k_TimelineClipAssetSuffix = "Clip";
         const string k_TimelineClipBehaviourSuffix = "Behaviour";
-
         const string k_PlayableBehaviourMixerSuffix = "MixerBehaviour";
         const string k_TrackAssetSuffix = "Track";
         const string k_PropertyDrawerSuffix = "Drawer";
         const int    k_PlayableNameCharLimit = 64;
-        const float  k_WindowWidth = 500f;
+        const float  k_WindowWidth = 550f;
         const float  k_MaxWindowHeight = 800f;
         const float  k_ScreenSizeWindowBuffer = 100f;
 
@@ -1186,6 +1194,12 @@ namespace MAOTimelineExtension.Editor
                     standardBlendPlayableProperties.Clear();
                 }
             }
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Field/Properties", GUILayout.Width(200f));
+            GUILayout.Label("Type", GUILayout.Width(150f));
+            GUILayout.Label(new GUIContent("Blendable", "Toggle to enable/disable property blending"), GUILayout.Width(60f));
+            EditorGUILayout.EndHorizontal();
             
             int indexToRemove = -1;
             for (int i = 0; i < standardBlendPlayableProperties.Count; i++)
@@ -1271,6 +1285,12 @@ namespace MAOTimelineExtension.Editor
             if(postProcessVolumeProperties.Any(prop => prop.usability == UsableProperty.Usability.Not))
                 EditorGUILayout.HelpBox("One or more of your chosen properties are not supported, which may cause errors, " +
                                         "or you should modify the generated code to make it work.", MessageType.Warning);
+            
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Field/Properties", GUILayout.Width(200f));
+            GUILayout.Label("Type", GUILayout.Width(150f));
+            GUILayout.Label("Blendable", GUILayout.Width(60f));
+            EditorGUILayout.EndHorizontal();
             
             int indexToRemove = -1;
             for (int i = 0; i < postProcessVolumeProperties.Count; i++)

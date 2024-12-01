@@ -351,7 +351,7 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if(prop.usability != UsableProperty.Usability.Blendable)
+                if(!prop.blendable)
                     continue;
                 
                 string type = prop.type == "int" ? "float" : prop.type;
@@ -367,8 +367,10 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if(prop.usability == UsableProperty.Usability.Blendable)
-                    returnVal += $"{k_Tab.Repeat(4)}{prop.NameAsLocalBlended} += input.{prop.name} * inputWeight;\n";
+                if(!prop.blendable) 
+                    continue;
+                
+                returnVal += $"{k_Tab.Repeat(4)}{prop.NameAsLocalBlended} += input.{prop.name} * inputWeight;\n";
             }
 
             return returnVal;
@@ -379,7 +381,8 @@ namespace MAOTimelineExtension.Editor
             string returnVal = "";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if (prop.usability != UsableProperty.Usability.Blendable) continue;
+                if(!prop.blendable) 
+                    continue;
                 
                 if (prop.type == "int")
                     returnVal += $"{k_Tab.Repeat(3)}m_TrackBinding.{prop.name}.value = Mathf.RoundToInt({prop.NameAsLocalBlended} + {prop.NameAsPrivateDefault} * (1f-totalWeight));\n";
@@ -723,7 +726,7 @@ using MAOTimelineExtension.Runtime;
             string returnVal = "";
             foreach (var prop in standardBlendPlayableProperties)
             {
-                if (prop.usability != UsableProperty.Usability.Blendable)
+                if (!prop.blendable)
                     continue;
 
                 string type = prop.type == "int" ? "float" : prop.type;
@@ -736,7 +739,7 @@ using MAOTimelineExtension.Runtime;
 
         string StandardBlendPlayableCurrentInputsDeclarationToString()
         {
-            if (standardBlendPlayableProperties.Any(x => x.usability == UsableProperty.Usability.Assignable))
+            if (standardBlendPlayableProperties.Any(x => !x.blendable))
             {
                 return k_Tab + k_Tab + "int currentInputs = 0;\n";
             }
@@ -749,8 +752,10 @@ using MAOTimelineExtension.Runtime;
             string returnVal = "";
             foreach (var prop in standardBlendPlayableProperties)
             {
-                if (prop.usability == UsableProperty.Usability.Blendable)
-                    returnVal += k_Tab + k_Tab + k_Tab + prop.NameAsLocalBlended + " += input." + prop.name + " * inputWeight;\n";
+                if (!prop.blendable)
+                    continue;
+                
+                returnVal += k_Tab + k_Tab + k_Tab + prop.NameAsLocalBlended + " += input." + prop.name + " * inputWeight;\n";
             }
 
             return returnVal;
@@ -761,10 +766,10 @@ using MAOTimelineExtension.Runtime;
             string returnVal = string.Empty;
             foreach (var prop in postProcessVolumeProperties)
             {
-                if (prop.usability == UsableProperty.Usability.Assignable)
-                {
-                    returnVal += $"{k_Tab.Repeat(5)}m_TrackBinding.{prop.name}.value = input.{prop.name};\r\n";
-                }
+                if (prop.blendable)
+                    continue;
+                
+                returnVal += $"{k_Tab.Repeat(5)}m_TrackBinding.{prop.name}.value = input.{prop.name};\r\n";
             }
 
             return returnVal;
@@ -777,10 +782,10 @@ using MAOTimelineExtension.Runtime;
             returnVal += $"{k_Tab.Repeat(3)}{{\r\n";
             foreach (var prop in postProcessVolumeProperties)
             {
-                if (prop.usability == UsableProperty.Usability.Assignable)
-                {
-                    returnVal += $"{k_Tab.Repeat(4)}m_TrackBinding.{prop.name}.value = {prop.NameAsPrivateDefault};\r\n";
-                }
+                if (prop.blendable)
+                    continue;
+                
+                returnVal += $"{k_Tab.Repeat(4)}m_TrackBinding.{prop.name}.value = {prop.NameAsPrivateDefault};\r\n";
             }
             returnVal += $"{k_Tab.Repeat(3)}}}";
 
@@ -797,13 +802,11 @@ using MAOTimelineExtension.Runtime;
             
             foreach (var prop in standardBlendPlayableProperties)
             {
-                if (prop.usability == UsableProperty.Usability.Assignable)
-                {
-                    returnVal += k_Tab + k_Tab + k_Tab + k_Tab + prop.NameAsPrivateAssigned + " = input." + prop.name +
-                                 ";\n";
-                    returnVal += k_Tab + k_Tab + k_Tab + k_Tab + "m_TrackBinding." + prop.name + " = " +
-                                 prop.NameAsPrivateAssigned + ";\n";
-                }
+                if (prop.blendable)
+                    continue;
+                
+                returnVal += k_Tab + k_Tab + k_Tab + k_Tab + prop.NameAsPrivateAssigned + " = input." + prop.name + ";\n";
+                returnVal += k_Tab + k_Tab + k_Tab + k_Tab + "m_TrackBinding." + prop.name + " = " + prop.NameAsPrivateAssigned + ";\n";
             }
 
             returnVal += k_Tab + k_Tab + k_Tab + k_Tab + "greatestWeight = inputWeight;\n";
@@ -813,7 +816,7 @@ using MAOTimelineExtension.Runtime;
 
         string StandardBlendPlayableCurrentInputIterationToString()
         {
-            if (standardBlendPlayableProperties.Any(x => x.usability == UsableProperty.Usability.Assignable))
+            if (standardBlendPlayableProperties.Any(x => !x.blendable))
             {
                 string returnVal = "\n";
                 returnVal += k_Tab + k_Tab + k_Tab + "if(!Mathf.Approximately(inputWeight, 0f))\n";
@@ -831,7 +834,7 @@ using MAOTimelineExtension.Runtime;
 
             foreach (var prop in standardBlendPlayableProperties)
             {
-                if (prop.usability != UsableProperty.Usability.Blendable)
+                if (!prop.blendable)
                     continue;
 
                 if (!firstNewLine)
@@ -843,10 +846,10 @@ using MAOTimelineExtension.Runtime;
                 if (prop.type == "int")
                     returnVal += k_Tab + k_Tab + prop.NameAsPrivateAssigned + " = Mathf.RoundToInt(" +
                                  prop.NameAsLocalBlended + " + " + prop.NameAsPrivateDefault +
-                                 " *(1f - totalWeight));\n";
+                                 " * (1f - totalWeight));\n";
                 else
                     returnVal += k_Tab + k_Tab + prop.NameAsPrivateAssigned + " = " + prop.NameAsLocalBlended + " + " +
-                                 prop.NameAsPrivateDefault + " *(1f - totalWeight);\n";
+                                 prop.NameAsPrivateDefault + " * (1f - totalWeight);\n";
 
                 returnVal += k_Tab + k_Tab + "m_TrackBinding." + prop.name + " = " + prop.NameAsPrivateAssigned + ";\n"; 
             }
@@ -859,7 +862,7 @@ using MAOTimelineExtension.Runtime;
             if (standardBlendPlayableProperties.Count == 0)
                 return "";
 
-            if (standardBlendPlayableProperties.Any(x => x.usability == UsableProperty.Usability.Assignable))
+            if (standardBlendPlayableProperties.Any(x => !x.blendable))
             {
                 string returnVal = "\n" + k_Tab + k_Tab +
                                    "if(currentInputs != 1 && 1f - totalWeight > greatestWeight)\n";
@@ -867,7 +870,7 @@ using MAOTimelineExtension.Runtime;
                 
                 foreach (var prop in standardBlendPlayableProperties)
                 {
-                    if (prop.usability != UsableProperty.Usability.Assignable)
+                    if (prop.blendable)
                         continue;
 
                     returnVal += k_Tab + k_Tab + k_Tab + "m_TrackBinding." + prop.name + " = " +
